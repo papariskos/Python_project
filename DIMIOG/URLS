@@ -1,0 +1,8 @@
+  Scarping
+    "Mediterranean College": "https://www.medcollege.edu.gr/en/international/courses-study/",
+    "Metropolitan College": "https://www.mitropolitiko.edu.gr/en/",
+    "City Unity College": "https://cityu.gr/en/
+API
+  "Coursera API": "https://api.coursera.org/api/catalog.v1/courses",
+    "Open Library API": "https://openlibrary.org/search.json?q=computer%20science%20course",
+    "University Domains API": "http://universities.hipolabs.com/search?country=Greece"
