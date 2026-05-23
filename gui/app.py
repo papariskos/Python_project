@@ -445,15 +445,15 @@ class CourseApp:
             messagebox.showinfo("Info", "All courses in the database have a duration of 0 hours.")
             return
 
-        plt.figure(figsize=(10, 6))
-        # Shorten titles for plotting labels
-        short_titles = [t[:25] + "..." if len(t) > 25 else t for t in df_longest["Title"]]
+        plt.figure(figsize=(12, 7))
+        # Truncate titles to a reasonable length for vertical layout
+        short_titles = [t[:35] + "..." if len(t) > 35 else t for t in df_longest["Title"]]
         
-        plt.bar(short_titles, df_longest["Duration"], color="#1a73e8", edgecolor="grey")
+        plt.bar(short_titles, df_longest["Duration"], color="#1a73e8", edgecolor="grey", width=0.5)
         plt.title("Duration of the 5 Longest Courses", fontsize=14, fontweight="bold", pad=15)
-        plt.xlabel("Course Titles", fontsize=11, labelpad=10)
+        plt.xlabel("Course Titles", fontsize=11, labelpad=15)
         plt.ylabel("Duration (Hours)", fontsize=11, labelpad=10)
-        plt.xticks(rotation=15, ha="right")
+        plt.xticks(rotation=45, ha="right", fontsize=9)
         plt.grid(axis="y", linestyle="--", alpha=0.7)
         plt.tight_layout()
         plt.show()
@@ -494,38 +494,49 @@ class CourseApp:
         if df_longest.empty:
             return
 
-        # Sort values by duration to draw a meaningful line trend
+        # Sort values by duration to draw a smooth left-to-right line trend
         df_longest = df_longest.sort_values(by="Duration")
 
-        plt.figure(figsize=(10, 6))
+        plt.figure(figsize=(12, 7))
         plt.plot(
             df_longest["Duration"],
             df_longest["Cost"],
             marker="o",
             linestyle="-",
-            color="#27ae60",
+            color="#4f46e5",  # Premium Indigo line
             linewidth=2.5,
-            markersize=8,
-            label="Cost Trend"
+            markersize=9,
+            markerfacecolor="#10b981",  # Emerald green markers
+            markeredgecolor="#4f46e5",
+            label="Cost-Duration Trend"
         )
         
-        # Add labels to points
-        for i, row in df_longest.iterrows():
-            short_t = row["Title"][:15] + "..." if len(row["Title"]) > 15 else row["Title"]
+        # Add labels to points with alternating offsets to avoid overlap
+        for i, (idx, row) in enumerate(df_longest.iterrows()):
+            short_t = row["Title"][:20] + "..." if len(row["Title"]) > 20 else row["Title"]
+            # Alternating offsets: even above, odd below
+            y_offset = 12 if i % 2 == 0 else -20
+            
             plt.annotate(
                 short_t,
                 (row["Duration"], row["Cost"]),
                 textcoords="offset points",
-                xytext=(0, 10),
+                xytext=(0, y_offset),
                 ha="center",
-                fontsize=9
+                fontsize=8.5,
+                fontweight="bold",
+                bbox=dict(boxstyle="round,pad=0.2", fc="white", alpha=0.8, ec="#e2e8f0")
             )
 
         plt.title("Correlation: Cost vs. Duration (5 Longest Courses)", fontsize=14, fontweight="bold", pad=15)
         plt.xlabel("Duration (Hours)", fontsize=11, labelpad=10)
         plt.ylabel("Cost ($)", fontsize=11, labelpad=10)
         plt.grid(True, linestyle="--", alpha=0.5)
-        plt.legend()
+        plt.legend(loc="upper left")
+        
+        # Add extra margins so annotations at extreme points don't cut off
+        plt.margins(x=0.15, y=0.15)
+        
         plt.tight_layout()
         plt.show()
         print("[Analytics] Status: Success - Displayed Cost-Duration Correlation Plot")
