@@ -14,11 +14,11 @@ class CourseApp:
     def __init__(self, root):
         self.root = root
         # Assignment Requirement: Team Names and AM in Window Title
-        self.root.title("Course App - Alexandros Dimitrakopoulos - AM: 12345")
+        self.root.title("Alexandros Dimitrakopoulos (1090028) - Alexandros Dimogerontas (1097587)")
         self.root.geometry("1250x850")
 
         self.base_dir = Path(__file__).resolve().parent.parent
-        self.csv_path = self.base_dir / "data" / "courses_12345.csv"
+        self.csv_path = self.base_dir / "data" / "courses_1090028.csv"
         self.csv_path.parent.mkdir(parents=True, exist_ok=True)
 
         self.setup_variables()
@@ -28,11 +28,8 @@ class CourseApp:
         # Normalization Print
         print("[Normalization] Status: Success - Initialized categorization systems")
 
-        if self.csv_path.exists():
-            self.load_csv(silent=True)
-        else:
-            self.populate_table(self.current_courses)
-            self.update_filter_values(self.current_courses)
+        self.populate_table(self.current_courses)
+        self.update_filter_values(self.current_courses)
 
         # Start the background scheduling mechanism (+10% Bonus)
         self.start_background_scheduler()
@@ -56,7 +53,6 @@ class CourseApp:
 
         ttk.Button(top_frame, text="Collect API Data", command=self.collect_api_data).pack(side="left", padx=5)
         ttk.Button(top_frame, text="Collect Scraping Data", command=self.collect_scraping_data).pack(side="left", padx=5)
-        ttk.Button(top_frame, text="Load CSV", command=self.load_csv).pack(side="left", padx=5)
         ttk.Button(top_frame, text="Export CSV", command=self.export_csv_action).pack(side="left", padx=5)
 
         # 2. FILTERS PANEL
@@ -307,13 +303,22 @@ class CourseApp:
                 self.status_label.config(text="No valid course records found from API")
                 return
 
-            # Store in Append Mode and reload database
-            self.append_courses_to_csv(mapped_courses)
-            self.load_csv(silent=True)
+            # Merge and deduplicate in memory
+            seen = {(c["title"].lower(), c["provider"].lower()) for c in self.current_courses}
+            added_count = 0
+            for course in mapped_courses:
+                key = (course["title"].lower(), course["provider"].lower())
+                if key not in seen:
+                    seen.add(key)
+                    self.current_courses.append(course)
+                    added_count += 1
+
+            self.populate_table(self.current_courses)
+            self.update_filter_values(self.current_courses)
 
             # Specific Console Print Requirement
-            print(f"[API_Collector] Status: Success - Loaded {len(mapped_courses)} records from API")
-            self.status_label.config(text=f"Loaded {len(mapped_courses)} API records in Append Mode")
+            print(f"[API_Collector] Status: Success - Loaded {len(mapped_courses)} records from API into memory")
+            self.status_label.config(text=f"Loaded {added_count} new API records into memory (Click 'Export CSV' to save!)")
 
         except Exception as e:
             self.status_label.config(text=f"API load failed: {e}")
@@ -339,14 +344,23 @@ class CourseApp:
                 self.status_label.config(text="No valid courses found during scraping")
                 return
 
-            # Store in Append Mode and reload database
-            self.append_courses_to_csv(scraped_courses)
-            self.load_csv(silent=True)
+            # Merge and deduplicate in memory
+            seen = {(c["title"].lower(), c["provider"].lower()) for c in self.current_courses}
+            added_count = 0
+            for course in scraped_courses:
+                key = (course["title"].lower(), course["provider"].lower())
+                if key not in seen:
+                    seen.add(key)
+                    self.current_courses.append(course)
+                    added_count += 1
+
+            self.populate_table(self.current_courses)
+            self.update_filter_values(self.current_courses)
 
             # Specific Console Print Requirement
             source_domain = urlparse(url_or_path).netloc or Path(url_or_path).name
-            print(f"[{source_domain}] Status: Success - Scraped {len(scraped_courses)} records")
-            self.status_label.config(text=f"Successfully scraped {len(scraped_courses)} course(s) in Append Mode")
+            print(f"[{source_domain}] Status: Success - Scraped {len(scraped_courses)} records into memory")
+            self.status_label.config(text=f"Scraped {added_count} new course(s) into memory (Click 'Export CSV' to save!)")
 
         except Exception as e:
             self.status_label.config(text=f"Scraping failed: {e}")
@@ -387,19 +401,42 @@ class CourseApp:
             self.status_label.config(text=f"Load failed: {e}")
 
     def export_csv_action(self):
-        # Allow the user to export the current database to a new file location
-        save_path = simpledialog.askstring("Export CSV", "Enter filename to export to (under data/ directory):", initialvalue="exported_courses.csv")
-        if not save_path:
-            return
-        
-        target_path = self.csv_path.parent / save_path
+        """
+        Saves/Exports the currently loaded memory courses directly back to the main database CSV
+        (courses_1090028.csv) in append-mode, merging with existing records and deduplicating.
+        """
         try:
-            df = pd.read_csv(self.csv_path)
-            df.to_csv(target_path, index=False)
-            messagebox.showinfo("Export Successful", f"Database successfully exported to:\n{target_path}")
-            print(f"[Exporter] Status: Success - Exported database to {save_path}")
+            df_new = pd.DataFrame([
+                {
+                    "Title": c["title"],
+                    "Provider": c["provider"],
+                    "Category": c["category"],
+                    "Difficulty": c["difficulty"],
+                    "Cost": float(c["cost"]),
+                    "Duration": float(c["duration"]),
+                    "Language": c["language"]
+                }
+                for c in self.current_courses
+            ])
+            
+            if self.csv_path.exists():
+                try:
+                    df_existing = pd.read_csv(self.csv_path)
+                except Exception:
+                    df_existing = pd.DataFrame(columns=["Title", "Provider", "Category", "Difficulty", "Cost", "Duration", "Language"])
+                df_combined = pd.concat([df_existing, df_new], ignore_index=True)
+            else:
+                df_combined = df_new
+                
+            # Drop duplicates to keep database clean and unique (preserves latest collected)
+            df_combined.drop_duplicates(subset=["Title", "Provider"], keep="last", inplace=True)
+            df_combined.to_csv(self.csv_path, index=False, encoding="utf-8")
+            
+            messagebox.showinfo("Update Successful", f"Database successfully updated in append-mode:\n{self.csv_path.name}")
+            print(f"[Exporter] Status: Success - Merged and saved database {self.csv_path.name}")
+            self.status_label.config(text=f"Database updated successfully in append-mode")
         except Exception as e:
-            messagebox.showerror("Export Failed", f"Could not export CSV:\n{e}")
+            messagebox.showerror("Update Failed", f"Could not update CSV:\n{e}")
 
     def apply_filters(self):
         filtered_courses = []
@@ -653,10 +690,17 @@ class CourseApp:
             try:
                 scraped = scrape_courses(str(mock_path))
                 if scraped:
-                    self.append_courses_to_csv(scraped)
-                    # Reload UI silently
-                    self.load_csv(silent=True)
-                    print("[Scheduler] Status: Success - Automatic background scraping synchronization completed")
+                    # Merge and deduplicate in memory
+                    seen = {(c["title"].lower(), c["provider"].lower()) for c in self.current_courses}
+                    for course in scraped:
+                        key = (course["title"].lower(), course["provider"].lower())
+                        if key not in seen:
+                            seen.add(key)
+                            self.current_courses.append(course)
+                    
+                    self.populate_table(self.current_courses)
+                    self.update_filter_values(self.current_courses)
+                    print("[Scheduler] Status: Success - Automatic background scraping synchronization completed in memory")
             except Exception as e:
                 print(f"[Scheduler] Error: Background task failed: {e}")
         
