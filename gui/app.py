@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, simpledialog, messagebox
 import csv
 from pathlib import Path
+from urllib.parse import urlparse
 import requests
 import pandas as pd
 import matplotlib.pyplot as plt

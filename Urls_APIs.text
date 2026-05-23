@@ -1,0 +1,21 @@
+URLS:
+
+1. MIT
+https://catalog.mit.edu/schools/engineering/electrical-engineering-computer-science/
+
+2.University of California San Diego (UCSD)
+https://catalog.ucsd.edu/courses/CSE.html
+
+3.University of Oxford
+https://www.cs.ox.ac.uk/teaching/courses/
+
+APIs:
+
+1.Microsoft learn:
+https://learn.microsoft.com/api/catalog/en-us/graph?api-version=2024-04-01-preview
+
+2. OpenLibrary Computer Science:
+https://openlibrary.org/subjects/computer_science.json
+
+3.Interactive Tutorials courses:
+https://raw.githubusercontent.com/ronreiter/interactive-tutorials/master/courses.json
