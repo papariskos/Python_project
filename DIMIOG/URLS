@@ -1,19 +1,8 @@
-Mediterranean College:
-https://www.medcollege.edu.gr/programmata-spoudon/
-
-Metropolitan College:
-https://www.mitropolitiko.edu.gr/el/programmata-spoudon
-
-City Unity College:
-https://cityu.gr/programmata-spoudon/
-
-Deree API:
-https://api.adzuna.com/v1/api/jobs/gr/search/1?app_id=test&app_key=test&what=Deree
-
-ALBA API:
-https://api.adzuna.com/v1/api/jobs/gr/search/1?app_id=test&app_key=test&what=ALBA
-
-New York College API:
-https://api.adzuna.com/v1/api/jobs/gr/search/1?app_id=test&app_key=test&what=New%20York%20College
-
-
+  Scarping
+    "Mediterranean College": "https://www.medcollege.edu.gr/en/international/courses-study/",
+    "Metropolitan College": "https://www.mitropolitiko.edu.gr/en/",
+    "City Unity College": "https://cityu.gr/en/
+API
+  "Coursera API": "https://api.coursera.org/api/catalog.v1/courses",
+    "Open Library API": "https://openlibrary.org/search.json?q=computer%20science%20course",
+    "University Domains API": "http://universities.hipolabs.com/search?country=Greece"
