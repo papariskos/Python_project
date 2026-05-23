@@ -1,0 +1,253 @@
+import os
+import pandas as pd
+import requests
+from bs4 import BeautifulSoup
+from datetime import datetime
+import matplotlib.pyplot as plt
+import tkinter as tk
+from tkinter import messagebox, ttk
+
+# --- ΡΥΘΜΙΣΕΙΣ ---
+ΑΜ_ΦΟΙΤΗΤΗ = "1234567"
+
+URLS = {
+    "Mediterranean College": "https://www.medcollege.edu.gr/programmata-spoudon/",
+    "Metropolitan College": "https://www.mitropolitiko.edu.gr/el/programmata-spoudon",
+    "City Unity College": "https://cityu.gr/programmata-spoudon/",
+    "Deree API": "https://api.adzuna.com/v1/api/jobs/gr/search/1?app_id=test&app_key=test&what=Deree",
+    "ALBA API": "https://api.adzuna.com/v1/api/jobs/gr/search/1?app_id=test&app_key=test&what=ALBA",
+    "New York College API": "https://api.adzuna.com/v1/api/jobs/gr/search/1?app_id=test&app_key=test&what=New%20York%20College"
+}
+
+HEADERS = {"User-Agent": "Mozilla/5.0"}
+final_list = []
+csv_file_path = None
+
+
+def classify_course(title):
+    t = title.lower()
+
+    if any(w in t for w in ['μαθ', 'math', 'stat', 'στατιστικ', 'algebra', 'λογιστικ']):
+        return "Μαθηματικής Επιστήμης"
+    elif any(w in t for w in ['φυσικ', 'phys', 'physics', 'ενεργει', 'energy', 'κβαντ']):
+        return "Φυσικής Επιστήμης"
+    elif any(w in t for w in ['μηχαν', 'engin', 'tech', 'τεχνολογ', 'python', 'java', 'robot', 'προγραμματισμ']):
+        return "Μηχανικής Φύσεως"
+    elif any(w in t for w in ['χημ', 'chem', 'βιολογ', 'biol', 'οργανικ']):
+        return "Χημικές Επιστήμες"
+    elif any(w in t for w in ['ψυχ', 'psych', 'ιστορ', 'histor', 'κοινωνιολογ', 'παιδαγωγ', 'φιλοσοφ']):
+        return "Ανθρωπιστικές Επιστήμες"
+    else:
+        return "Γενικής Παιδείας"
+
+
+def add_course(courses, title, provider, cost, method):
+    title = title.strip()
+    if len(title) > 10:
+        courses.append({
+            "Title": title,
+            "Provider": provider,
+            "Category": classify_course(title),
+            "Cost": cost,
+            "Extraction_Method": method
+        })
+
+
+def get_mediterranean_data():
+    courses = []
+    try:
+        res = requests.get(URLS["Mediterranean College"], headers=HEADERS, timeout=10)
+        soup = BeautifulSoup(res.text, "html.parser")
+
+        for tag in soup.find_all(["h3", "h4"])[:5]:
+            add_course(courses, tag.get_text(), "Mediterranean College", "3400 €", "Web Scraping")
+    except Exception:
+        pass
+
+    return courses
+
+
+def get_metropolitan_data():
+    courses = []
+    try:
+        res = requests.get(URLS["Metropolitan College"], headers=HEADERS, timeout=10)
+        soup = BeautifulSoup(res.text, "html.parser")
+
+        for item in soup.find_all("a", class_="program-title")[:5]:
+            add_course(courses, item.get_text(), "Metropolitan College", "4200 €", "Web Scraping")
+    except Exception:
+        pass
+
+    return courses
+
+
+def get_city_unity_data():
+    courses = []
+    try:
+        res = requests.get(URLS["City Unity College"], headers=HEADERS, timeout=10)
+        soup = BeautifulSoup(res.text, "html.parser")
+
+        for tag in soup.find_all(["h2", "h3"])[:5]:
+            add_course(courses, tag.get_text(), "City Unity College", "2800 €", "Web Scraping")
+    except Exception:
+        pass
+
+    return courses
+
+
+def get_api_data(url_key, provider, cost):
+    courses = []
+    try:
+        res = requests.get(URLS[url_key], timeout=10).json()
+
+        for item in res.get("results", [])[:5]:
+            add_course(courses, item["title"], provider, cost, "API")
+    except Exception:
+        pass
+
+    return courses
+
+
+def save_to_desktop(data_list):
+    desktop_path = os.path.join(os.path.expanduser("~"), "Desktop")
+
+    now = datetime.now().strftime("%d-%m-%Y_%H-%M-%S")
+    filename = f"courses_{ΑΜ_ΦΟΙΤΗΤΗ}_{now}.csv"
+    final_path = os.path.join(desktop_path, filename)
+
+    df = pd.DataFrame(data_list)
+    df.to_csv(final_path, index=False, encoding="utf-8-sig")
+
+    return final_path
+
+
+def visualize_csv_data(path):
+    df = pd.read_csv(path)
+    category_counts = df["Category"].value_counts()
+
+    plt.figure(figsize=(10, 6), facecolor="#f8f9fa")
+    ax = plt.subplot(111)
+    ax.set_facecolor("white")
+
+    colors = ["#4a90e2", "#50e3c2", "#b8e986", "#f5a623", "#e2849e", "#9b5de5"]
+
+    bars = plt.bar(
+        category_counts.index,
+        category_counts.values,
+        color=colors[:len(category_counts)],
+        width=0.55,
+        edgecolor="#bdc3c7",
+        linewidth=0.7
+    )
+
+    for bar in bars:
+        height = bar.get_height()
+        plt.text(
+            bar.get_x() + bar.get_width() / 2,
+            height + 0.1,
+            str(int(height)),
+            ha="center",
+            va="bottom",
+            fontsize=10,
+            weight="bold"
+        )
+
+    plt.title(f"Κατανομή Μαθημάτων ανά Κατηγορία (AM: {ΑΜ_ΦΟΙΤΗΤΗ})", fontsize=13, weight="bold")
+    plt.ylabel("Πλήθος Μαθημάτων")
+
+    ax.spines["top"].set_visible(False)
+    ax.spines["right"].set_visible(False)
+
+    plt.grid(axis="y", linestyle="--", alpha=0.5)
+    plt.xticks(rotation=20, ha="right")
+    plt.tight_layout()
+    plt.show()
+
+
+# --- TKINTER FUNCTIONS ---
+
+def collect_data():
+    global final_list
+
+    output_text.delete("1.0", tk.END)
+    output_text.insert(tk.END, "Ξεκίνησε η συλλογή δεδομένων...\n\n")
+
+    final_list = []
+
+    final_list.extend(get_mediterranean_data())
+    final_list.extend(get_metropolitan_data())
+    final_list.extend(get_city_unity_data())
+
+    final_list.extend(get_api_data("Deree API", "Deree - ACG", "5200 €"))
+    final_list.extend(get_api_data("ALBA API", "ALBA Graduate Business School", "6400 €"))
+    final_list.extend(get_api_data("New York College API", "New York College", "3700 €"))
+
+    if not final_list:
+        messagebox.showerror("Σφάλμα", "Δεν συλλέχθηκαν δεδομένα.")
+        return
+
+    for course in final_list:
+        output_text.insert(
+            tk.END,
+            f"{course['Provider']} | {course['Title']} | {course['Category']} | {course['Cost']}\n"
+        )
+
+    messagebox.showinfo("Ολοκληρώθηκε", f"Βρέθηκαν {len(final_list)} μαθήματα.")
+
+
+def save_csv():
+    global csv_file_path
+
+    if not final_list:
+        messagebox.showwarning("Προσοχή", "Πρώτα πάτησε Συλλογή Δεδομένων.")
+        return
+
+    csv_file_path = save_to_desktop(final_list)
+    messagebox.showinfo("Επιτυχία", f"Το CSV αποθηκεύτηκε:\n{csv_file_path}")
+
+
+def show_chart():
+    if not csv_file_path:
+        messagebox.showwarning("Προσοχή", "Πρώτα αποθήκευσε το CSV.")
+        return
+
+    visualize_csv_data(csv_file_path)
+
+
+def show_urls():
+    urls_window = tk.Toplevel(root)
+    urls_window.title("URLs")
+    urls_window.geometry("700x300")
+
+    text = tk.Text(urls_window, wrap="word")
+    text.pack(expand=True, fill="both", padx=10, pady=10)
+
+    for name, url in URLS.items():
+        text.insert(tk.END, f"{name}:\n{url}\n\n")
+
+
+# --- GUI ---
+
+root = tk.Tk()
+root.title("Συλλογή Μαθημάτων")
+root.geometry("900x600")
+
+title_label = tk.Label(
+    root,
+    text=f"Συλλογή Μαθημάτων και Οπτικοποίηση - AM: {ΑΜ_ΦΟΙΤΗΤΗ}",
+    font=("Arial", 14, "bold")
+)
+title_label.pack(pady=10)
+
+button_frame = tk.Frame(root)
+button_frame.pack(pady=10)
+
+tk.Button(button_frame, text="Συλλογή Δεδομένων", command=collect_data, width=20).grid(row=0, column=0, padx=5)
+tk.Button(button_frame, text="Αποθήκευση CSV", command=save_csv, width=20).grid(row=0, column=1, padx=5)
+tk.Button(button_frame, text="Εμφάνιση Γραφήματος", command=show_chart, width=20).grid(row=0, column=2, padx=5)
+tk.Button(button_frame, text="Προβολή URLs", command=show_urls, width=20).grid(row=0, column=3, padx=5)
+
+output_text = tk.Text(root, wrap="word", font=("Arial", 10))
+output_text.pack(expand=True, fill="both", padx=15, pady=10)
+
+root.mainloop()
